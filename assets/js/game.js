@@ -8,10 +8,12 @@ var Game = {
         // Here we load all the needed resources for the level.
         // In our case, that's just two squares - one for the snake body and one for the apple.
         game.load.image('snake', './assets/images/snake.png');
+        game.load.image('snake-rev', './assets/images/snake-rev.png');
         game.load.image('apple', './assets/images/apple.png');
     },
 
     create : function() {
+        time = 0
 
         // By setting up global variables in the create function, we initialise them on game start.
         // We need them to be globally available so that the update function can alter them.
@@ -25,6 +27,11 @@ var Game = {
         direction = 'right';            // The direction of our snake.
         new_direction = null;           // A buffer to store the new direction into.
         addNew = false;                 // A variable used when an apple has been eaten.
+
+        // reversal-related functionality
+        reverseDir = false;
+        snakeImg = 'snake'
+        appleEvent = null;
 
         // Set up a Phaser controller for keyboard input.
         cursors = game.input.keyboard.createCursorKeys();
@@ -56,22 +63,41 @@ var Game = {
     update: function() {
 
         // Handle arrow key presses, while not allowing illegal direction changes that will kill the player.
-
-        if (cursors.right.isDown && direction!='left')
+        if (cursors.right.isDown)
         {
-            new_direction = 'right';
+            if(!reverseDir && direction!='left'){
+              new_direction = 'right';
+            }
+            else if(reverseDir && direction!='right'){
+              new_direction = 'left'
+            }
         }
         else if (cursors.left.isDown && direction!='right')
         {
-            new_direction = 'left';
+            if(!reverseDir && direction!='right'){
+              new_direction = 'left';
+            }
+            else if(reverseDir && direction!='left'){
+              new_direction = 'right'
+            }
         }
-        else if (cursors.up.isDown && direction!='down')
+        else if (cursors.up.isDown)
         {
-            new_direction = 'up';
+            if(!reverseDir && direction!='down'){
+              new_direction = 'up';
+            }
+            else if(reverseDir && direction!='up'){
+              new_direction = 'down'
+            }
         }
-        else if (cursors.down.isDown && direction!='up')
+        else if (cursors.down.isDown)
         {
-            new_direction = 'down';
+            if(!reverseDir && direction!='up'){
+              new_direction = 'down';
+            }
+            else if(reverseDir && direction!='down'){
+              new_direction = 'up'
+            }
         }
 
         // A formula to calculate game speed based on the score.
@@ -90,8 +116,6 @@ var Game = {
         // The higher the speed, the more frequently this is fulfilled,
         // making the snake move faster.
         if (updateDelay % (10 - speed) == 0) {
-
-
             // Snake movement
 
             var firstCell = snake[snake.length - 1],
@@ -135,12 +159,10 @@ var Game = {
 
             // End of snake movement.
 
-
-
             // Increase length of snake if an apple had been eaten.
             // Create a block in the back of the snake with the old position of the previous last block (it has moved now along with the rest of the snake).
             if(addNew){
-                snake.unshift(game.add.sprite(oldLastCellx, oldLastCelly, 'snake'));
+                snake.unshift(game.add.sprite(oldLastCellx, oldLastCelly, snakeImg));
                 addNew = false;
             }
 
@@ -157,8 +179,27 @@ var Game = {
 
     },
 
-    generateApple: function(){
+    revSnake: function(){
+      console.log('snake has been reversed!');
+      snakeImg = (snakeImg == 'snake') ? 'snake-rev' : 'snake'
+      for(var i = 0; i < snake.length; i++){
+        newSnake = snake[i];
+        newSnake.loadTexture(snakeImg);
+      }
+      reverseDir = !reverseDir;
+    },
 
+    resetToDefault: function(){
+      game.time.events.remove(appleEvent);
+      reverseDir = false;
+      snakeImg = 'snake';
+      for(var i = 0; i < snake.length; i++){
+        newSnake = snake[i];
+        newSnake.loadTexture(snakeImg);
+      }
+    },
+
+    generateApple: function(){
         // Chose a random place on the grid.
         // X is between 0 and 585 (39*15)
         // Y is between 0 and 435 (29*15)
@@ -168,6 +209,9 @@ var Game = {
 
         // Add a new apple.
         apple = game.add.sprite(randomX, randomY, 'apple');
+        appleEvent = game.time.events.add(Phaser.Timer.SECOND*10, this.revSnake);
+
+
     },
 
     appleCollision: function() {
@@ -182,6 +226,8 @@ var Game = {
 
                 // Destroy the old apple.
                 apple.destroy();
+                this.resetToDefault();
+
 
                 // Make a new one.
                 this.generateApple();
